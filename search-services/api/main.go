@@ -54,6 +54,7 @@ func main() {
 	mux.Handle("GET /api/words", rest.NewWordsHandler(log, wordsClient, cfg))
 
 	mux.Handle("GET /api/search", rest.NewSearchHandler(log, searchClient, cfg))
+	mux.Handle("GET /api/isearch", rest.NewISearchHandler(log, searchClient, cfg))
 
 	mux.Handle("POST /api/db/update", rest.NewUpdateHandler(log, updateClient, cfg))
 	mux.Handle("GET /api/db/stats", rest.NewUpdateStatsHandler(log, updateClient, cfg))

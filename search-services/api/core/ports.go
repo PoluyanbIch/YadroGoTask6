@@ -19,4 +19,5 @@ type Updater interface {
 
 type Searcher interface {
 	Search(context.Context, string, int) (SearchReply, error)
+	ISearch(context.Context, string, int) (SearchReply, error)
 }

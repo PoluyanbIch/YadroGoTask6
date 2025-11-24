@@ -15,6 +15,7 @@ import (
 	searchpb "yadro.com/course/proto/search"
 	"yadro.com/course/search/adapters/db"
 	searchgrpc "yadro.com/course/search/adapters/grpc"
+	"yadro.com/course/search/adapters/initiator"
 	"yadro.com/course/search/adapters/update"
 	"yadro.com/course/search/adapters/words"
 	"yadro.com/course/search/core"
@@ -64,6 +65,14 @@ func run(cfg config.Config, log *slog.Logger) error {
 	// service
 	searcher := core.NewService(log, storage, words, update)
 
+	// context for Ctrl-C
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	// initiator
+	init := initiator.NewInitiator(cfg.IndexTTL, searcher, log)
+	init.Start(ctx)
+
 	// grpc server
 	listener, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
@@ -73,10 +82,6 @@ func run(cfg config.Config, log *slog.Logger) error {
 	s := grpc.NewServer()
 	searchpb.RegisterSearchServer(s, searchgrpc.NewServer(searcher))
 	reflection.Register(s)
-
-	// context for Ctrl-C
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
 	go func() {
 		<-ctx.Done()

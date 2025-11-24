@@ -6,6 +6,7 @@ import (
 
 type Searcher interface {
 	Search(context.Context, string, int) ([]Comic, error)
+	ISearch(context.Context, string, int) ([]Comic, error)
 }
 
 type Update interface {
@@ -18,4 +19,8 @@ type DB interface {
 
 type Words interface {
 	Norm(ctx context.Context, phrase string) ([]string, error)
+}
+
+type Initiator interface {
+	BuildIndex(context.Context) error
 }

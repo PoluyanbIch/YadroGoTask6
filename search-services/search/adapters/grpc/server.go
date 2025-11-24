@@ -44,3 +44,22 @@ func (s *Server) Search(ctx context.Context, req *searchpb.SearchRequest) (*sear
 		Total:  int64(len(pbComics)),
 	}, nil
 }
+
+func (s *Server) ISearch(ctx context.Context, req *searchpb.SearchRequest) (*searchpb.SearchReply, error) {
+	comics, err := s.service.ISearch(ctx, req.Phrase, int(req.Limit))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "isearch error: %v", err)
+	}
+	var pbComics []*searchpb.Comics
+	for _, comic := range comics {
+		pbComics = append(pbComics, &searchpb.Comics{
+			Id:  int64(comic.ID),
+			Url: comic.URL,
+		})
+	}
+
+	return &searchpb.SearchReply{
+		Comics: pbComics,
+		Total:  int64(len(pbComics)),
+	}, nil
+}

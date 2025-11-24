@@ -47,3 +47,16 @@ func (c Client) Search(ctx context.Context, phrase string, limit int) (core.Sear
 	}
 	return core.SearchReply{Comics: comics, Total: int(resp.Total)}, nil
 }
+
+func (c Client) ISearch(ctx context.Context, phrase string, limit int) (core.SearchReply, error) {
+	resp, err := c.client.ISearch(ctx, &searchpb.SearchRequest{Phrase: phrase, Limit: int64(limit)})
+	if err != nil {
+		c.log.Error("isearch call failed", "error", err)
+		return core.SearchReply{}, core.ErrInternal
+	}
+	var comics []core.SearchResult
+	for _, c := range resp.Comics {
+		comics = append(comics, core.SearchResult{Id: int(c.Id), Url: c.Url})
+	}
+	return core.SearchReply{Comics: comics, Total: int(resp.Total)}, nil
+}
