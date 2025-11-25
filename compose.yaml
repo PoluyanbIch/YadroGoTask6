@@ -70,7 +70,6 @@ services:
       - ./search-services/search/config.yaml:/config.yaml
     environment:
       - SEARCH_ADDRESS=:8080
-      - UPDATE_ADDRESS=update:8080
       - WORDS_ADDRESS=words:8080
       - DB_ADDRESS=postgres://postgres:password@postgres:5432/postgres
       - INDEX_TTL=20s

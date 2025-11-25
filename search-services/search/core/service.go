@@ -9,29 +9,25 @@ import (
 )
 
 type Service struct {
-	log    *slog.Logger
-	db     DB
-	words  Words
-	update Update
-	index  map[string][]int
+	log       *slog.Logger
+	db        DB
+	words     Words
+	index     map[string][]int
+	comicsMap map[int]DBComic
 }
 
-func NewService(log *slog.Logger, db DB, words Words, update Update) *Service {
+func NewService(log *slog.Logger, db DB, words Words) *Service {
 	s := &Service{
-		log:    log,
-		db:     db,
-		words:  words,
-		update: update,
-		index:  nil,
+		log:       log,
+		db:        db,
+		words:     words,
+		index:     nil,
+		comicsMap: nil,
 	}
 	return s
 }
 
 func (s *Service) Search(ctx context.Context, phrase string, limit int) ([]Comic, error) {
-	if err := s.update.Update(ctx); err != nil {
-		s.log.Error("Search/update error", "error", err)
-		return nil, err
-	}
 	normPhrase, err := s.words.Norm(ctx, phrase)
 	if err != nil {
 		s.log.Error("Search/words error", "error", err)
@@ -73,19 +69,10 @@ func (s *Service) ISearch(ctx context.Context, phrase string, limit int) ([]Comi
 		s.log.Error("norm phrase error", "error", err)
 		return nil, err
 	}
-	comics, err := s.db.Read(ctx)
-	if err != nil {
-		s.log.Error("Read DB error", "error", err)
-		return nil, err
-	}
-	comicsMap := make(map[int]DBComic)
-	for _, c := range comics {
-		comicsMap[c.ID] = c
-	}
 
 	idfCache := make(map[string]float64)
 	for _, word := range normPhrase {
-		idfCache[word] = indexCalculateIDF(word, s.index[word], comicsMap)
+		idfCache[word] = indexCalculateIDF(word, s.index[word], s.comicsMap)
 	}
 
 	const (
@@ -105,15 +92,15 @@ func (s *Service) ISearch(ctx context.Context, phrase string, limit int) ([]Comi
 		res[id] = 0
 		countMatchWords := 0
 		for _, word := range normPhrase {
-			res[id] += idfCache[word] * calculateTF(word, comicsMap[id].Title) * titleWeight
-			res[id] += idfCache[word] * calculateTF(word, comicsMap[id].Alt) * altWeight
-			res[id] += idfCache[word] * calculateTF(word, comicsMap[id].Description) * descriptionWeight
+			res[id] += idfCache[word] * calculateTF(word, s.comicsMap[id].Title) * titleWeight
+			res[id] += idfCache[word] * calculateTF(word, s.comicsMap[id].Alt) * altWeight
+			res[id] += idfCache[word] * calculateTF(word, s.comicsMap[id].Description) * descriptionWeight
 			switch {
-			case countSubstringInField(word, comicsMap[id].Title) > 0:
+			case countSubstringInField(word, s.comicsMap[id].Title) > 0:
 				countMatchWords++
-			case countSubstringInField(word, comicsMap[id].Alt) > 0:
+			case countSubstringInField(word, s.comicsMap[id].Alt) > 0:
 				countMatchWords++
-			case countSubstringInField(word, comicsMap[id].Description) > 0:
+			case countSubstringInField(word, s.comicsMap[id].Description) > 0:
 				countMatchWords++
 			}
 		}
@@ -132,7 +119,7 @@ func (s *Service) ISearch(ctx context.Context, phrase string, limit int) ([]Comi
 	sort.Slice(sortedResult, func(i, j int) bool { return sortedResult[i].Score > sortedResult[j].Score })
 	var searchResult []Comic
 	for _, i := range sortedResult {
-		searchResult = append(searchResult, Comic{ID: i.ID, URL: comicsMap[i.ID].URL})
+		searchResult = append(searchResult, Comic{ID: i.ID, URL: s.comicsMap[i.ID].URL})
 	}
 	if len(searchResult) < limit {
 		limit = len(searchResult)
@@ -146,14 +133,17 @@ func (s *Service) BuildIndex(ctx context.Context) error {
 		s.log.Error("DB Read error", "error", err)
 		return err
 	}
+	comicsMap := make(map[int]DBComic)
 	index := make(map[string][]int)
 	for _, c := range comics {
+		comicsMap[c.ID] = c
 		words := mergeMaps(c.Alt, mergeMaps(c.Description, c.Title))
 		for word := range words {
 			index[word] = append(index[word], c.ID)
 		}
 	}
 	s.index = index
+	s.comicsMap = comicsMap
 	return nil
 }
 

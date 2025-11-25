@@ -16,7 +16,6 @@ import (
 	"yadro.com/course/search/adapters/db"
 	searchgrpc "yadro.com/course/search/adapters/grpc"
 	"yadro.com/course/search/adapters/initiator"
-	"yadro.com/course/search/adapters/update"
 	"yadro.com/course/search/adapters/words"
 	"yadro.com/course/search/core"
 
@@ -56,14 +55,8 @@ func run(cfg config.Config, log *slog.Logger) error {
 		return fmt.Errorf("failed create Words client: %v", err)
 	}
 
-	// update adapter
-	update, err := update.NewClient(cfg.UpdateAddress, log)
-	if err != nil {
-		return fmt.Errorf("failed create Update client: %v", err)
-	}
-
 	// service
-	searcher := core.NewService(log, storage, words, update)
+	searcher := core.NewService(log, storage, words)
 
 	// context for Ctrl-C
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
